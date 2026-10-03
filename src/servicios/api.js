@@ -2,7 +2,9 @@
  * Configuración de API para obtener datos desde el Cloudflare Worker.
  */
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL;
+const WORKER_URL = 
+  import.meta.env.VITE_WORKER_URL || 
+  'https://pesca-yucatan-worker.saulp.workers.dev/api/condiciones';
 
 /**
  * Obtiene los datos meteorológicos y marinos para coordenadas geográficas específicas.
