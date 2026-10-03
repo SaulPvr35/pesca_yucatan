@@ -34,6 +34,13 @@ const UMBRALES = {
   PRESION_IDEAL_MAX:   1015,  // hPa — Borde superior del rango estable
   PRESION_ALTA_APATIA: 1020,  // hPa — Presiones altas → peces apáticos, baja actividad
 
+  // ── Seguridad Civil & Salud Térmica ──
+  CALOR_EXTREMO:       40,    // °C — Sensación térmica con peligro inminente de golpe de calor
+  CALOR_PRECAUCION:    35,    // °C — Sensación térmica con riesgo de deshidratación severa
+  UV_EXTREMO:          11,    // Índice UV de radiación extrema
+  UV_MUY_ALTO:         8,     // Índice UV muy alto
+  RAFAGA_PELIGRO:      40,    // km/h — Ráfaga repentina peligrosa en altamar
+  
   // ── Pesos (suman 1.0) ──
   PESO_LUNA:           0.35,
   PESO_AGUA:           0.35,
@@ -56,6 +63,14 @@ const UMBRALES = {
  */
 
 /**
+ * @typedef {Object} AlertaSeguridad
+ * @property {'peligro' | 'advertencia' | 'salud'} nivel
+ * @property {string} titulo
+ * @property {string} descripcion
+ * @property {string} accionRecomendada
+ */
+
+/**
  * @typedef {Object} EvaluacionCondiciones
  * @property {EstadoVeredicto} estado       - Categoría del veredicto.
  * @property {string} tituloVeredicto       - Titular heroico para la UI.
@@ -65,6 +80,7 @@ const UMBRALES = {
  * @property {string} tipoIcono             - Clave semántica del icono visual.
  * @property {number} puntaje               - Puntaje total (0 – 100).
  * @property {FactorEvaluacion[]} factores  - Desglose detallado de cada factor.
+ * @property {AlertaSeguridad[]} alertasSeguridad - Avisos náuticos y de salud (calor/UV/viento).
  * @property {Object} estiloHero            - Mapa de clases Tailwind para tematizar el Hero.
  */
 
@@ -83,18 +99,27 @@ function indiceHoraActual(timeArray) {
 }
 
 /**
- * Extrae las tres métricas clave (ola, viento, presión) del objeto de clima.
+ * Extrae las métricas del objeto de clima.
  * Soporta tanto la forma aplanada como la estructura `hourly` de Open-Meteo.
  *
  * @param {Object} datosClima
- * @returns {{ waveHeight: number|null, windSpeed: number|null, pressure: number|null }}
+ * @returns {{ waveHeight: number|null, windSpeed: number|null, windGusts: number|null, pressure: number|null, temp: number|null, apparentTemp: number|null, uvIndex: number|null, seaTemp: number|null }}
  */
 function extraerMetricasClima(datosClima) {
   if (!datosClima || typeof datosClima !== 'object') {
-    return { waveHeight: null, windSpeed: null, pressure: null };
+    return {
+      waveHeight: null,
+      windSpeed: null,
+      windGusts: null,
+      pressure: null,
+      temp: null,
+      apparentTemp: null,
+      uvIndex: null,
+      seaTemp: null,
+    };
   }
 
-  // ── Forma aplanada (ya procesada por el Worker / hook) ──
+  // ── Forma aplanada ──
   if (
     typeof datosClima.wave_height === 'number' &&
     typeof datosClima.wind_speed_10m === 'number' &&
@@ -103,7 +128,12 @@ function extraerMetricasClima(datosClima) {
     return {
       waveHeight: datosClima.wave_height,
       windSpeed: datosClima.wind_speed_10m,
+      windGusts: datosClima.wind_gusts_10m ?? datosClima.wind_speed_10m,
       pressure: datosClima.surface_pressure,
+      temp: datosClima.temperature_2m ?? null,
+      apparentTemp: datosClima.apparent_temperature ?? datosClima.temperature_2m ?? null,
+      uvIndex: datosClima.uv_index ?? null,
+      seaTemp: datosClima.sea_surface_temperature ?? null,
     };
   }
 
@@ -115,8 +145,13 @@ function extraerMetricasClima(datosClima) {
 
   return {
     waveHeight: extraer(hourly.wave_height),
-    windSpeed:  extraer(hourly.wind_speed_10m),
-    pressure:   extraer(hourly.surface_pressure),
+    windSpeed: extraer(hourly.wind_speed_10m),
+    windGusts: extraer(hourly.wind_gusts_10m) ?? extraer(hourly.wind_speed_10m),
+    pressure: extraer(hourly.surface_pressure),
+    temp: extraer(hourly.temperature_2m),
+    apparentTemp: extraer(hourly.apparent_temperature) ?? extraer(hourly.temperature_2m),
+    uvIndex: extraer(hourly.uv_index),
+    seaTemp: extraer(hourly.sea_surface_temperature),
   };
 }
 
@@ -289,7 +324,69 @@ function obtenerEstiloHero(estado) {
  * @returns {EvaluacionCondiciones} Veredicto completo con puntaje, factores y estilos.
  */
 export const evaluarCondiciones = (datosClima, datosLuna = null) => {
-  const { waveHeight, windSpeed, pressure } = extraerMetricasClima(datosClima);
+  const {
+    waveHeight,
+    windSpeed,
+    windGusts,
+    pressure,
+    temp,
+    apparentTemp,
+    uvIndex,
+  } = extraerMetricasClima(datosClima);
+
+  // ════════════════════════════════════════════════════════════════
+  //  ⚠️  SISTEMA DE ALERTAS DE SEGURIDAD & SALUD DEL PESCADOR
+  // ════════════════════════════════════════════════════════════════
+  /** @type {AlertaSeguridad[]} */
+  const alertasSeguridad = [];
+
+  // 1. Alerta por Calor Extremo o Deshidratación (Sensación Térmica en Yucatán)
+  if (apparentTemp !== null) {
+    if (apparentTemp >= UMBRALES.CALOR_EXTREMO) {
+      alertasSeguridad.push({
+        nivel: 'peligro',
+        titulo: 'Peligro Extremo de Golpe de Calor',
+        descripcion: `Sensación térmica sofocante de ${Math.round(apparentTemp)}°C (Temp: ${Math.round(temp ?? apparentTemp)}°C). Riesgo alto de golpe de calor en el mar.`,
+        accionRecomendada: 'Evita navegar entre 11:00 AM y 4:00 PM. Lleva mínimo 3L de agua/electrolitos por persona, toldo/bimini obligatorio y ropa con filtro UPF 50+.',
+      });
+    } else if (apparentTemp >= UMBRALES.CALOR_PRECAUCION) {
+      alertasSeguridad.push({
+        nivel: 'salud',
+        titulo: 'Precaución por Calor Intenso',
+        descripcion: `Sensación térmica de ${Math.round(apparentTemp)}°C en zona costera. Deshidratación acelerada por salitre y sol reflejado.`,
+        accionRecomendada: 'Hidratación constante antes de tener sed. Programa tu jornada en la madrugada (5:00 a 10:00 AM) o atardecer.',
+      });
+    }
+  }
+
+  // 2. Alerta de Radiación Ultravioleta (UV)
+  if (uvIndex !== null) {
+    if (uvIndex >= UMBRALES.UV_EXTREMO) {
+      alertasSeguridad.push({
+        nivel: 'peligro',
+        titulo: `Índice UV Extremo (${Math.round(uvIndex)})`,
+        descripcion: 'La radiación solar reflejada en el mar quema la piel en menos de 15 minutos sin protección.',
+        accionRecomendada: 'Lentes polarizados con filtro UV400 (vital para vista en agua), buff para cuello, gorro con solapa y bloqueador mineral biodegradable.',
+      });
+    } else if (uvIndex >= UMBRALES.UV_MUY_ALTO) {
+      alertasSeguridad.push({
+        nivel: 'salud',
+        titulo: `Índice UV Muy Alto (${Math.round(uvIndex)})`,
+        descripcion: 'Fuerte exposición solar directa y reflejada en el espejo de agua.',
+        accionRecomendada: 'Aplica protector solar cada 2 horas y protégete los ojos con polarizados.',
+      });
+    }
+  }
+
+  // 3. Alerta por Ráfagas repentinas / Aviso a embarcaciones menores
+  if (windGusts !== null && windGusts >= UMBRALES.RAFAGA_PELIGRO) {
+    alertasSeguridad.push({
+      nivel: 'advertencia',
+      titulo: `Ráfagas repentinas de ${Math.round(windGusts)} km/h`,
+      descripcion: 'Viento con rachas capaces de voltear lanchas ribereñas o romper anclas en fondos arenosos de Yucatán.',
+      accionRecomendada: 'Mantén línea de vista con la costa. Usa chaleco salvavidas puesto en todo momento.',
+    });
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  🛑  KILL SWITCH — REGLA DE SEGURIDAD INFRANQUEABLE
@@ -301,25 +398,26 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   if (vientoPeligroso || olaPeligrosa || tormentaPresion) {
     // Construir razones específicas para el pescador
     const razones = [];
-    if (vientoPeligroso) razones.push(`viento de ${windSpeed} km/h (máx. seguro: ${UMBRALES.VIENTO_PELIGRO})`);
-    if (olaPeligrosa)    razones.push(`olas de ${waveHeight} m (máx. seguro: ${UMBRALES.OLA_PELIGRO})`);
-    if (tormentaPresion) razones.push(`presión de ${pressure} hPa (indicativo de tormenta)`);
+    if (vientoPeligroso) razones.push(`viento sostenido de ${windSpeed} km/h (límite lanchas: ${UMBRALES.VIENTO_PELIGRO} km/h)`);
+    if (olaPeligrosa)    razones.push(`olas de ${waveHeight} m (límite embarcación menor: ${UMBRALES.OLA_PELIGRO} m)`);
+    if (tormentaPresion) razones.push(`presión de ${pressure} hPa (posible depresión o frente frío activo)`);
 
     return {
       estado:             'Peligro',
-      tituloVeredicto:    'Quédate en tierra',
+      tituloVeredicto:    'Puerto Cerrado / No Salir',
       colorTailwind:      'bg-red-600',
-      mensaje:            `Condiciones inseguras para navegar: ${razones.join('; ')}. No arriesgues a la tripulación.`,
-      recomendacionCorta: 'No salir — Condiciones peligrosas',
+      mensaje:            `Condiciones marítimas críticas: ${razones.join('; ')}. Riesgo inminente de zozobra. Quédate en tierra firme.`,
+      recomendacionCorta: 'No salir al mar — Alternativa: resguardo en rías o posponer',
       tipoIcono:          'precaucion',
       puntaje:            0,
       factores: [{
-        nombre: 'Seguridad',
+        nombre: 'Seguridad Náutica',
         icono:  '🚨',
         puntos: 0,
         maximo: 100,
         nota:   `Kill Switch activado: ${razones.join('; ')}`,
       }],
+      alertasSeguridad,
       estiloHero: obtenerEstiloHero('Peligro'),
     };
   }
@@ -327,7 +425,7 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   // ════════════════════════════════════════════════════════════════
   //  📊  SISTEMA DE PUNTUACIÓN PONDERADA
   // ════════════════════════════════════════════════════════════════
-  const lunaActividad = datosLuna?.porcentajeActividad ?? 50; // 50% conservador si no hay datos
+  const lunaActividad = datosLuna?.porcentajeActividad ?? 50;
   const lunaFase      = datosLuna?.fase ?? 'Desconocida';
 
   const rLuna    = calcularPuntosLuna(lunaActividad);
@@ -370,29 +468,29 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
     estado        = 'Épico';
     titulo        = '¡Condiciones Épicas!';
     color         = 'bg-emerald-700';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Mar planchado, luna favorable y presión estable. Día excepcional para zarpar — no dejes la caña en casa.`;
-    recomendacion = 'Embarcación menor, troleo y fondo';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Mar planchado, luna favorable y presión estable. Día excepcional para zarpar en la costa yucateca.`;
+    recomendacion = 'Salida ideal: troleo costero, fondo en arrecifes o pesca con señuelo';
     icono         = 'favorable';
   } else if (puntajeTotal >= 60) {
     estado        = 'Buena Pesca';
     titulo        = 'Buena Pesca';
     color         = 'bg-green-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Condiciones favorables con factores balanceados. Buena jornada para pescar con buen criterio.`;
-    recomendacion = 'Salida recomendada con precaución estándar';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Condiciones favorables con balance adecuado de viento y marea. Jornada muy productiva con buen criterio.`;
+    recomendacion = 'Salida en lancha o escollera recomendada con precauciones habituales';
     icono         = 'favorable';
   } else if (puntajeTotal >= 40) {
     estado        = 'Regular';
     titulo        = 'Condiciones Regulares';
     color         = 'bg-yellow-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Factores mixtos que limitan la captura. Adapta la técnica y considera pesca de orilla o escolleras.`;
-    recomendacion = 'Orilla, escolleras o con experiencia';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Factores mixtos que limitan la visibilidad del agua o la agresividad del pez.`;
+    recomendacion = 'Prefiere pesca en muelles, escolleras o canales de manglar más protegidos';
     icono         = 'variable';
   } else {
     estado        = 'Difícil';
     titulo        = 'Pesca Difícil';
     color         = 'bg-orange-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Múltiples factores en contra. El éxito será limitado — evalúa posponer la salida.`;
-    recomendacion = 'Evalúa alternativas o posponer';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Factores desfavorables (viento picado, mar turbio o presión inestable). Actividad escasa.`;
+    recomendacion = 'Se recomienda posponer salida o intentar pesca pasiva con carnada viva en ría';
     icono         = 'variable';
   }
 
@@ -405,6 +503,7 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
     tipoIcono:          icono,
     puntaje:            puntajeTotal,
     factores,
+    alertasSeguridad,
     estiloHero:         obtenerEstiloHero(estado),
   };
 };

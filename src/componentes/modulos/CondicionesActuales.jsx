@@ -13,6 +13,10 @@ import {
   TrendingUp,
   ShieldAlert,
   Moon,
+  Thermometer,
+  Sun,
+  Flame,
+  LifeBuoy,
 } from 'lucide-react';
 import { usarClima } from '../../hooks/usarClima';
 import { evaluarCondiciones } from '../../utilidades/motorCondiciones';
@@ -265,7 +269,12 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
   const periodoOla = datos.hourly?.wave_period?.[indiceActual] ?? '--';
   const vientoVel = datos.hourly?.wind_speed_10m?.[indiceActual] ?? '--';
   const vientoDir = datos.hourly?.wind_direction_10m?.[indiceActual] ?? '--';
+  const rachaViento = datos.hourly?.wind_gusts_10m?.[indiceActual] ?? vientoVel;
   const presion = datos.hourly?.surface_pressure?.[indiceActual] ?? '--';
+  const tempAire = datos.hourly?.temperature_2m?.[indiceActual] ?? '--';
+  const sensacionTermica = datos.hourly?.apparent_temperature?.[indiceActual] ?? tempAire;
+  const indiceUV = datos.hourly?.uv_index?.[indiceActual] ?? '--';
+  const tempAgua = datos.hourly?.sea_surface_temperature?.[indiceActual] ?? '--';
 
   const rumboOla = typeof direccionOla === 'number' ? calcularRumboCardinal(direccionOla) : '';
   const rumboViento = typeof vientoDir === 'number' ? calcularRumboCardinal(vientoDir) : '';
@@ -324,7 +333,7 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
                     : <Anchor className="w-4 h-4 shrink-0 text-slate-500" />
                   }
                   <span className="text-slate-600">
-                    {esPeligro ? 'Alerta: ' : 'Sugerido: '}
+                    {esPeligro ? 'Instrucción náutica: ' : 'Recomendación: '}
                     <span className="text-slate-900 font-extrabold">
                       {evaluacion.recomendacionCorta}
                     </span>
@@ -337,7 +346,62 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
       </Tarjeta>
 
       {/* ══════════════════════════════════════════════════════
-          2. FACTORES CLAVE — Desglose de la puntuación
+          2. ALERTAS DE SEGURIDAD & SALUD DEL PESCADOR (NUEVO)
+         ══════════════════════════════════════════════════════ */}
+      {evaluacion.alertasSeguridad && evaluacion.alertasSeguridad.length > 0 && (
+        <div className="space-y-2.5">
+          {evaluacion.alertasSeguridad.map((alerta, idx) => {
+            const esPeligroAlerta = alerta.nivel === 'peligro';
+            const esSalud = alerta.nivel === 'salud';
+
+            return (
+              <div
+                key={idx}
+                className={`p-4 rounded-2xl border flex items-start gap-3.5 shadow-xs transition-all ${
+                  esPeligroAlerta
+                    ? 'bg-rose-50/90 border-rose-200 text-rose-950'
+                    : esSalud
+                    ? 'bg-amber-50/90 border-amber-200 text-amber-950'
+                    : 'bg-orange-50/90 border-orange-200 text-orange-950'
+                }`}
+              >
+                <div
+                  className={`p-2 rounded-xl shrink-0 ${
+                    esPeligroAlerta
+                      ? 'bg-rose-100 text-rose-600'
+                      : esSalud
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-orange-100 text-orange-700'
+                  }`}
+                >
+                  {esPeligroAlerta ? (
+                    <Flame className="w-5 h-5" />
+                  ) : esSalud ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <LifeBuoy className="w-5 h-5" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold tracking-tight mb-0.5">
+                    {alerta.titulo}
+                  </h4>
+                  <p className="text-xs opacity-85 leading-relaxed mb-1.5">
+                    {alerta.descripcion}
+                  </p>
+                  <p className="text-xs font-semibold underline decoration-dotted">
+                    💡 Acción recomendada: {alerta.accionRecomendada}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          3. FACTORES CLAVE — Desglose de la puntuación
          ══════════════════════════════════════════════════════ */}
       {evaluacion.factores && evaluacion.factores.length > 0 && (
         <Tarjeta>
@@ -346,7 +410,7 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
               <TrendingUp className="w-4 h-4" />
             </div>
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-              Factores Clave
+              Factores Clave de Pesca
             </h3>
           </div>
 
@@ -369,22 +433,48 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
       )}
 
       {/* ══════════════════════════════════════════════════════
-          3. MÉTRICAS TÉCNICAS — Datos crudos para pescadores avanzados
+          4. MÉTRICAS TÉCNICAS — Datos de Boyas y Meteorología
          ══════════════════════════════════════════════════════ */}
       <Tarjeta>
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-            Métricas del Mar y Clima (Hora Actual)
+            Condiciones del Entorno Marino (Hora Actual)
           </span>
           <span className="text-[10px] text-slate-400 hidden sm:inline">
-            Boyas y modelo marino
+            Open-Meteo ECMWF / Boyas
           </span>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Sensación Térmica / Temp */}
+          <TarjetaMetrica
+            icono={<Thermometer className="w-4 h-4 text-amber-500" />}
+            etiqueta="Sensación Térmica"
+            valor={sensacionTermica !== '--' ? Math.round(Number(sensacionTermica)) : '--'}
+            unidad="°C"
+            extra={tempAire !== '--' && (
+              <span className="text-[10px] font-bold text-slate-500 ml-1">
+                (Aire: {Math.round(Number(tempAire))}°)
+              </span>
+            )}
+          />
+
+          {/* Radiación UV */}
+          <TarjetaMetrica
+            icono={<Sun className="w-4 h-4 text-amber-500" />}
+            etiqueta="Índice Solar UV"
+            valor={indiceUV !== '--' ? Math.round(Number(indiceUV)) : '--'}
+            unidad="UV"
+            extra={indiceUV !== '--' && Number(indiceUV) >= 8 && (
+              <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-1 py-0.5 rounded">
+                Extremo
+              </span>
+            )}
+          />
+
           {/* Altura de Ola */}
           <TarjetaMetrica
-            icono={<Waves className="w-4 h-4" />}
+            icono={<Waves className="w-4 h-4 text-sky-500" />}
             etiqueta="Altura de Ola"
             valor={alturaOla}
             unidad="m"
@@ -392,15 +482,15 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
 
           {/* Periodo de Ola */}
           <TarjetaMetrica
-            icono={<Timer className="w-4 h-4" />}
-            etiqueta="Periodo"
+            icono={<Timer className="w-4 h-4 text-sky-500" />}
+            etiqueta="Periodo Ola"
             valor={periodoOla}
             unidad="seg"
           />
 
           {/* Dirección de Ola */}
           <TarjetaMetrica
-            icono={<Compass className="w-4 h-4" />}
+            icono={<Compass className="w-4 h-4 text-slate-500" />}
             etiqueta="Dir. Oleaje"
             valor={direccionOla !== '--' ? Math.round(Number(direccionOla)) + '°' : '--'}
             unidad=""
@@ -411,30 +501,47 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
             )}
           />
 
-          {/* Velocidad del Viento */}
+          {/* Viento y Ráfagas */}
           <TarjetaMetrica
-            icono={<Wind className="w-4 h-4" />}
-            etiqueta="Viento"
+            icono={<Wind className="w-4 h-4 text-teal-500" />}
+            etiqueta="Viento (Ráfagas)"
             valor={vientoVel}
             unidad="km/h"
-            extra={rumboViento && (
-              <span className="text-xs font-bold text-slate-600 bg-slate-200/70 px-1.5 py-0.5 rounded">
-                {rumboViento}
-              </span>
-            )}
+            extra={
+              <div className="flex items-center gap-1">
+                {rachaViento !== '--' && (
+                  <span className="text-[10px] font-bold text-slate-500">
+                    racha {Math.round(Number(rachaViento))}
+                  </span>
+                )}
+                {rumboViento && (
+                  <span className="text-xs font-bold text-slate-600 bg-slate-200/70 px-1 py-0.5 rounded">
+                    {rumboViento}
+                  </span>
+                )}
+              </div>
+            }
           />
 
           {/* Presión Barométrica */}
           <TarjetaMetrica
-            icono={<Gauge className="w-4 h-4" />}
-            etiqueta="Presión"
+            icono={<Gauge className="w-4 h-4 text-indigo-500" />}
+            etiqueta="Presión Atmosf."
             valor={presion}
             unidad="hPa"
           />
 
+          {/* Temperatura del Agua */}
+          <TarjetaMetrica
+            icono={<Waves className="w-4 h-4 text-emerald-500" />}
+            etiqueta="Temperatura Agua"
+            valor={tempAgua !== '--' ? Math.round(Number(tempAgua)) : '--'}
+            unidad="°C"
+          />
+
           {/* Fase Lunar */}
           <TarjetaMetrica
-            icono={<Moon className="w-4 h-4" />}
+            icono={<Moon className="w-4 h-4 text-indigo-400" />}
             etiqueta="Luna"
             valor={datosLuna?.iluminacion ?? '--'}
             unidad="%"
