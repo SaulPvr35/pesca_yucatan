@@ -104,41 +104,39 @@ export const obtenerDatosLunares = (fecha = new Date(), esDeDia = true) => {
   };
 };
 
-// Función de cálculo de actividad solunar basada en reglas estrictas
 /**
- * Calcula la probabilidad de captura (actividad solunar) a partir del ángulo lunar y
- * si la pesca es diurna o nocturna.
+ * Calcula la probabilidad de actividad solunar (0 a 100) de forma determinista y matemática.
  *
- * Regla estricta:
- *  - Luna Nueva: máxima actividad diurna (90‑100%).
- *  - Luna Llena: máxima actividad nocturna, penaliza actividad diurna al 40%.
- *  - Cuartos (Creciente/Menguante): actividad baja (40‑50%) en cualquier momento.
- *  - Otras fases: se usa la curva armónica tradicional (70 + 25·cos(2θ)).
+ * Modelo bimodal armónico basado en la Teoría Solunar de John Alden Knight:
+ *  - Luna Nueva (0°) y Luna Llena (180°): Mareas vivas (sicigias). Máxima amplitud de corriente. (85% - 95%)
+ *  - Cuartos (90° y 270°): Mareas muertas (cuadraturas). Corrientes mínimas, peces pasivos. (35% - 45%)
+ *  - Fases intermedias (Crecientes y Menguantes cóncavas/gibosas): Transición suave armónica (55% - 75%)
  *
- * @param {number} gradosLuna Ángulo lunar normalizado (0‑360).
- * @param {boolean} esDeDia true si la actividad está en horario diurno.
- * @returns {number} Probabilidad de pesca en porcentaje (0‑100).
+ * @param {number} gradosLuna Ángulo lunar geocéntrico normalizado (0 a 360).
+ * @param {boolean} [esDeDia=true] Si la jornada es diurna.
+ * @returns {number} Actividad biológica solunar estimada (35 a 95).
  */
-export const calcularActividadSolunar = (gradosLuna, esDeDia) => {
+export const calcularActividadSolunar = (gradosLuna, esDeDia = true) => {
+  const thetaRad = (gradosLuna * Math.PI) / 180;
+
+  // Curva armónica bimodal de Knight: picos en 0° (Nueva) y 180° (Llena)
+  // Amplitud base: 65% ± 30% -> Rango: 35% en cuadraturas (90°/270°) a 95% en sicigias (0°/180°)
+  let actividadBase = 65 + 30 * Math.cos(2 * thetaRad);
+
   const fase = mapearOchoFases(gradosLuna);
 
-  // Helper para rango aleatorio inclusivo
-  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  // Ajuste biológico diurno/nocturno:
+  // En Luna Llena de día, los peces comieron toda la noche con luz de luna -> día penalizado (-15%)
+  if (fase === 'Luna Llena' && esDeDia) {
+    actividadBase = Math.max(40, actividadBase - 15);
+  }
 
-  if (fase === 'Luna Nueva') {
-    // Máxima actividad diurna
-    return esDeDia ? randInt(90, 100) : randInt(30, 45); // nocturna baja (no especificado)
-  }
-  if (fase === 'Luna Llena') {
-    // Máxima actividad nocturna, día penalizado a 40%
-    return esDeDia ? 40 : randInt(90, 100);
-  }
+  // En Cuartos, la marea muerta no supera el 45%
   if (fase === 'Cuarto Creciente' || fase === 'Cuarto Menguante') {
-    return randInt(40, 50);
+    actividadBase = Math.min(45, Math.max(35, actividadBase));
   }
-  // Fases intermedias: usar modelo armónico tradicional
-  const thetaRad = (gradosLuna * Math.PI) / 180;
-  return Math.round(70 + 25 * Math.cos(2 * thetaRad));
+
+  return Math.round(Math.max(30, Math.min(95, actividadBase)));
 };
 
 // Alias para garantizar compatibilidad con importaciones previas

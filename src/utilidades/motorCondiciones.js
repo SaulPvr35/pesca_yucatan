@@ -423,7 +423,7 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   }
 
   // ════════════════════════════════════════════════════════════════
-  //  📊  SISTEMA DE PUNTUACIÓN PONDERADA
+  //  📊  SISTEMA DE PUNTUACIÓN PONDERADA & MODELO BIOLÓGICO REAL
   // ════════════════════════════════════════════════════════════════
   const lunaActividad = datosLuna?.porcentajeActividad ?? 50;
   const lunaFase      = datosLuna?.fase ?? 'Desconocida';
@@ -432,7 +432,17 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   const rAgua    = calcularPuntosAgua(waveHeight, windSpeed);
   const rPresion = calcularPuntosPresion(pressure);
 
-  const puntajeTotal = Math.round(rLuna.puntos + rAgua.puntos + rPresion.puntos);
+  let puntajeTotal = Math.round(rLuna.puntos + rAgua.puntos + rPresion.puntos);
+
+  // ── AJUSTE REALISTA DE ACTIVIDAD (Ley del Mínimo Biológico) ──
+  // En la pesca marina, si no hay corriente por marea muerta (Cuartos),
+  // los peces reducen drásticamente su pique sin importar que el mar esté en calma.
+  // Un día de marea muerta (actividad solunar < 50%) NO PUEDE ser Épico ni superar 65 pts.
+  const esMareaMuerta = lunaActividad < 50;
+  if (esMareaMuerta && puntajeTotal > 65) {
+    // Si el mar está impecable pero la marea está muerta, tope biológico en 62-65
+    puntajeTotal = Math.round(60 + (puntajeTotal - 65) * 0.15);
+  }
 
   /** @type {FactorEvaluacion[]} */
   const factores = [
@@ -460,37 +470,46 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   ];
 
   // ════════════════════════════════════════════════════════════════
-  //  🏆  VEREDICTO FINAL
+  //  🏆  VEREDICTO FINAL CON TEXTO DINÁMICO 100% REAL
   // ════════════════════════════════════════════════════════════════
   let estado, titulo, color, mensaje, recomendacion, icono;
 
-  if (puntajeTotal > 80) {
+  // Descripción dinámica del estado del agua
+  const marEnCalma = waveHeight !== null && waveHeight <= 0.6 && windSpeed !== null && windSpeed <= 16;
+  const descripcionMar = marEnCalma ? 'mar en calma y navegación cómoda' : 'oleaje activo';
+
+  if (puntajeTotal >= 80) {
     estado        = 'Épico';
     titulo        = '¡Condiciones Épicas!';
     color         = 'bg-emerald-700';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Mar planchado, luna favorable y presión estable. Día excepcional para zarpar en la costa yucateca.`;
-    recomendacion = 'Salida ideal: troleo costero, fondo en arrecifes o pesca con señuelo';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Conjunción perfecta: marea viva con alta corrida (${lunaFase}), ${descripcionMar} y presión estable (${pressure ?? '--'} hPa). Jornada de máxima probabilidad de pique.`;
+    recomendacion = 'Salida a fondo en arrecife, troleo y casteo abierto';
     icono         = 'favorable';
-  } else if (puntajeTotal >= 60) {
+  } else if (puntajeTotal >= 65) {
     estado        = 'Buena Pesca';
     titulo        = 'Buena Pesca';
     color         = 'bg-green-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Condiciones favorables con balance adecuado de viento y marea. Jornada muy productiva con buen criterio.`;
+    mensaje       = `Puntaje ${puntajeTotal}/100. Buenas condiciones generales con balance favorable de viento y marea. Actividad consistente en zonas costeras.`;
     recomendacion = 'Salida en lancha o escollera recomendada con precauciones habituales';
     icono         = 'favorable';
-  } else if (puntajeTotal >= 40) {
+  } else if (puntajeTotal >= 45) {
     estado        = 'Regular';
-    titulo        = 'Condiciones Regulares';
+    titulo        = esMareaMuerta ? 'Marea Muerta / Pesca Lenta' : 'Condiciones Regulares';
     color         = 'bg-yellow-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Factores mixtos que limitan la visibilidad del agua o la agresividad del pez.`;
-    recomendacion = 'Prefiere pesca en muelles, escolleras o canales de manglar más protegidos';
+    if (esMareaMuerta) {
+      mensaje     = `Puntaje ${puntajeTotal}/100. Aunque hay ${descripcionMar}, la fase ${lunaFase} produce marea muerta con poca corriente. Los peces están inactivos o en el fondo. Se requiere técnica fina y carnada viva.`;
+      recomendacion = 'Pesca técnica: carnada viva, fondos hondos o buscar boca de rías';
+    } else {
+      mensaje     = `Puntaje ${puntajeTotal}/100. Factores mixtos en contra (mar picado o viento moderado). Pique intermitente.`;
+      recomendacion = 'Prefiere pesca en muelles, escolleras o canales de manglar resguardados';
+    }
     icono         = 'variable';
   } else {
     estado        = 'Difícil';
     titulo        = 'Pesca Difícil';
     color         = 'bg-orange-500';
-    mensaje       = `Puntaje ${puntajeTotal}/100. Factores desfavorables (viento picado, mar turbio o presión inestable). Actividad escasa.`;
-    recomendacion = 'Se recomienda posponer salida o intentar pesca pasiva con carnada viva en ría';
+    mensaje       = `Puntaje ${puntajeTotal}/100. Múltiples factores desfavorables (mar turbio, presión oscilante o corrientes desfavorables). Éxito limitado.`;
+    recomendacion = 'Evalúa posponer o intentar pesca recreativa de orilla';
     icono         = 'variable';
   }
 
