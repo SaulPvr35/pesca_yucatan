@@ -142,4 +142,4 @@ La información proporcionada por esta plataforma tiene propósitos informativos
 
 ## 8. Licencia
 
-Este proyecto está bajo la Licencia MIT. Consulte el archivo [LICENSE](LICENSE) para más información.
+Este proyecto está protegido bajo una **Licencia No Comercial con Atribución Obligatoria**. Consulte el archivo [LICENSE](LICENSE) para conocer los términos completos. Se prohíbe el uso comercial y la apropiación o suplantación de autoría sin consentimiento expreso por escrito.
