@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Cabecera } from './Cabecera';
 import { PieDePagina } from './PieDePagina';
 
-export const PlantillaPrincipal = ({ children }) => {
+export const PlantillaPrincipal = ({ children, pestanaActiva, onCambiarPestana }) => {
   const videoDesktopRef = useRef(null);
   const videoMobileRef = useRef(null);
 
@@ -51,10 +51,10 @@ export const PlantillaPrincipal = ({ children }) => {
       <div className="fixed inset-0 bg-gradient-to-b from-sky-950/40 via-teal-950/60 to-slate-950/80 -z-20 pointer-events-none backdrop-blur-[0.5px]" />
 
       {/* Cabecera fija */}
-      <Cabecera />
+      <Cabecera pestanaActiva={pestanaActiva} onCambiarPestana={onCambiarPestana} />
 
-      {/* Contenido principal */}
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16 relative z-10">
+      {/* Contenido principal con aprovechamiento óptimo del ancho en pantallas grandes */}
+      <main className="flex-grow max-w-[1536px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-12 relative z-10">
         {children}
       </main>
 

@@ -87,14 +87,37 @@ const UMBRALES = {
 // ─────────────────── EXTRACCIÓN DE DATOS ──────────────────────
 
 /**
+ * Obtiene la fecha local en formato "YYYY-MM-DD" respetando la zona horaria del usuario.
+ * @param {Date} [fecha=new Date()]
+ * @returns {string}
+ */
+export function obtenerFechaLocal(fecha = new Date()) {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+/**
+ * Obtiene el prefijo de fecha y hora local en formato "YYYY-MM-DDTHH".
+ * @param {Date} [fecha=new Date()]
+ * @returns {string}
+ */
+export function obtenerPrefijoHoraLocal(fecha = new Date()) {
+  const fechaStr = obtenerFechaLocal(fecha);
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  return `${fechaStr}T${hora}`;
+}
+
+/**
  * Localiza el índice correspondiente a la hora actual dentro de un array `time` de Open-Meteo.
  * @param {string[]} timeArray - Serie de timestamps ISO-8601 truncados a la hora.
  * @returns {number} Índice más cercano a "ahora" (0 si no encuentra coincidencia).
  */
 function indiceHoraActual(timeArray) {
   if (!Array.isArray(timeArray) || timeArray.length === 0) return 0;
-  const prefijo = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
-  const idx = timeArray.findIndex((t) => typeof t === 'string' && t.startsWith(prefijo));
+  const prefijoLocal = obtenerPrefijoHoraLocal();
+  const idx = timeArray.findIndex((t) => typeof t === 'string' && t.startsWith(prefijoLocal));
   return idx !== -1 ? idx : 0;
 }
 
@@ -103,9 +126,10 @@ function indiceHoraActual(timeArray) {
  * Soporta tanto la forma aplanada como la estructura `hourly` de Open-Meteo.
  *
  * @param {Object} datosClima
+ * @param {number} [indiceEspecifico=null] - Índice opcional dentro de los arrays horarios (ej. para pronósticos futuros).
  * @returns {{ waveHeight: number|null, windSpeed: number|null, windGusts: number|null, pressure: number|null, temp: number|null, apparentTemp: number|null, uvIndex: number|null, seaTemp: number|null }}
  */
-function extraerMetricasClima(datosClima) {
+function extraerMetricasClima(datosClima, indiceEspecifico = null) {
   if (!datosClima || typeof datosClima !== 'object') {
     return {
       waveHeight: null,
@@ -121,6 +145,7 @@ function extraerMetricasClima(datosClima) {
 
   // ── Forma aplanada ──
   if (
+    indiceEspecifico === null &&
     typeof datosClima.wave_height === 'number' &&
     typeof datosClima.wind_speed_10m === 'number' &&
     typeof datosClima.surface_pressure === 'number'
@@ -139,7 +164,7 @@ function extraerMetricasClima(datosClima) {
 
   // ── Forma Open-Meteo con arrays horarios ──
   const hourly = datosClima.hourly || datosClima;
-  const idx = indiceHoraActual(hourly.time);
+  const idx = indiceEspecifico !== null ? indiceEspecifico : indiceHoraActual(hourly.time);
 
   const extraer = (arr) => (Array.isArray(arr) && typeof arr[idx] === 'number' ? arr[idx] : null);
 
@@ -321,9 +346,10 @@ function obtenerEstiloHero(estado) {
  * @param {Object} [datosLuna] - Resultado de `obtenerDatosLunares()` de `astronomia.js`.
  * @param {number} [datosLuna.porcentajeActividad] - Índice solunar (0-100).
  * @param {string} [datosLuna.fase] - Nombre de la fase lunar.
+ * @param {number} [indiceEspecifico=null] - Índice horario opcional para evaluar un momento específico.
  * @returns {EvaluacionCondiciones} Veredicto completo con puntaje, factores y estilos.
  */
-export const evaluarCondiciones = (datosClima, datosLuna = null) => {
+export const evaluarCondiciones = (datosClima, datosLuna = null, indiceEspecifico = null) => {
   const {
     waveHeight,
     windSpeed,
@@ -332,7 +358,7 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
     temp,
     apparentTemp,
     uvIndex,
-  } = extraerMetricasClima(datosClima);
+  } = extraerMetricasClima(datosClima, indiceEspecifico);
 
   // ════════════════════════════════════════════════════════════════
   //  ⚠️  SISTEMA DE ALERTAS DE SEGURIDAD & SALUD DEL PESCADOR
@@ -412,10 +438,10 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
       puntaje:            0,
       factores: [{
         nombre: 'Seguridad Náutica',
-        icono:  '🚨',
+        icono:  'seguridad',
         puntos: 0,
         maximo: 100,
-        nota:   `Kill Switch activado: ${razones.join('; ')}`,
+        nota:   `Criterio de seguridad activado: ${razones.join('; ')}`,
       }],
       alertasSeguridad,
       estiloHero: obtenerEstiloHero('Peligro'),
@@ -423,7 +449,7 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   }
 
   // ════════════════════════════════════════════════════════════════
-  //  📊  SISTEMA DE PUNTUACIÓN PONDERADA & MODELO BIOLÓGICO REAL
+  //  SISTEMA DE PUNTUACIÓN PONDERADA & MODELO BIOLÓGICO REAL
   // ════════════════════════════════════════════════════════════════
   const lunaActividad = datosLuna?.porcentajeActividad ?? 50;
   const lunaFase      = datosLuna?.fase ?? 'Desconocida';
@@ -434,13 +460,12 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
 
   let puntajeTotal = Math.round(rLuna.puntos + rAgua.puntos + rPresion.puntos);
 
-  // ── AJUSTE REALISTA DE ACTIVIDAD (Ley del Mínimo Biológico) ──
+  // Ajuste realista de actividad (Ley del Mínimo Biológico)
   // En la pesca marina, si no hay corriente por marea muerta (Cuartos),
   // los peces reducen drásticamente su pique sin importar que el mar esté en calma.
-  // Un día de marea muerta (actividad solunar < 50%) NO PUEDE ser Épico ni superar 65 pts.
+  // Un día de marea muerta (actividad solunar < 50%) no supera 65 pts.
   const esMareaMuerta = lunaActividad < 50;
   if (esMareaMuerta && puntajeTotal > 65) {
-    // Si el mar está impecable pero la marea está muerta, tope biológico en 62-65
     puntajeTotal = Math.round(60 + (puntajeTotal - 65) * 0.15);
   }
 
@@ -448,21 +473,21 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
   const factores = [
     {
       nombre: `Luna (${lunaFase})`,
-      icono:  '🌙',
+      icono:  'luna',
       puntos: rLuna.puntos,
       maximo: UMBRALES.PESO_LUNA * 100,
       nota:   rLuna.nota,
     },
     {
       nombre: 'Oleaje y Viento',
-      icono:  '🌊',
+      icono:  'mar',
       puntos: rAgua.puntos,
       maximo: UMBRALES.PESO_AGUA * 100,
       nota:   rAgua.nota,
     },
     {
       nombre: 'Presión Barométrica',
-      icono:  '📊',
+      icono:  'presion',
       puntos: rPresion.puntos,
       maximo: UMBRALES.PESO_PRESION * 100,
       nota:   rPresion.nota,
@@ -525,6 +550,92 @@ export const evaluarCondiciones = (datosClima, datosLuna = null) => {
     alertasSeguridad,
     estiloHero:         obtenerEstiloHero(estado),
   };
+};
+
+/**
+ * Planificador semanal de pesca: Agrupa las 168 horas devueltas por Open-Meteo en los 7 días
+ * de la semana, calculando para cada día la fase lunar astronómica, condiciones climáticas
+ * medias/críticas en horario idóneo de pesca (madrugada/mañana 07:00 - 10:00) y el veredicto general.
+ *
+ * @param {Object} datosClima - Respuesta de Open-Meteo con arrays `hourly`.
+ * @param {Function} obtenerDatosLunares - Función astronómica determinista.
+ * @returns {Array<Object>} Lista de 7 días evaluados con fecha, día de la semana, puntaje, veredicto y luna.
+ */
+export const evaluarPronosticoSemanal = (datosClima, obtenerDatosLunaresFn) => {
+  if (!datosClima?.hourly?.time || !Array.isArray(datosClima.hourly.time)) {
+    return [];
+  }
+
+  const times = datosClima.hourly.time;
+  // Agrupar índices por fecha "YYYY-MM-DD"
+  const diasMapa = new Map();
+
+  times.forEach((tStr, index) => {
+    if (typeof tStr !== 'string') return;
+    const fechaClave = tStr.slice(0, 10);
+    if (!diasMapa.has(fechaClave)) {
+      diasMapa.set(fechaClave, []);
+    }
+    diasMapa.get(fechaClave).push({ index, tStr });
+  });
+
+  const resultados = [];
+  const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  for (const [fechaIso, entradas] of diasMapa.entries()) {
+    // Tomamos como referencia la mañana (08:00 o la hora más cercana a la mañana)
+    // que es la ventana primordial de pesca costera en Yucatán
+    const entradaManiana =
+      entradas.find((e) => e.tStr.includes('T08:00') || e.tStr.includes('T07:00') || e.tStr.includes('T09:00')) ||
+      entradas[Math.floor(entradas.length / 2)];
+
+    const indiceReferencia = entradaManiana.index;
+    const fechaObj = new Date(fechaIso + 'T12:00:00');
+
+    // Datos lunares reales para esa fecha
+    const datosLuna = typeof obtenerDatosLunaresFn === 'function' ? obtenerDatosLunaresFn(fechaObj) : null;
+
+    // Evaluación con el motor náutico para esa fecha/índice
+    const evaluacion = evaluarCondiciones(datosClima, datosLuna, indiceReferencia);
+
+    // Métricas del día para mostrar en la tarjeta de planificación
+    const olas = entradas.map((e) => datosClima.hourly.wave_height?.[e.index]).filter((v) => typeof v === 'number');
+    const vientos = entradas.map((e) => datosClima.hourly.wind_speed_10m?.[e.index]).filter((v) => typeof v === 'number');
+    const temps = entradas.map((e) => datosClima.hourly.temperature_2m?.[e.index]).filter((v) => typeof v === 'number');
+
+    const olaPromedio = olas.length > 0 ? (olas.reduce((a, b) => a + b, 0) / olas.length).toFixed(1) : '--';
+    const vientoMax = vientos.length > 0 ? Math.round(Math.max(...vientos)) : '--';
+    const tempMax = temps.length > 0 ? Math.round(Math.max(...temps)) : '--';
+
+    const diaSemana = nombresDias[fechaObj.getDay()];
+    const diaNumero = fechaObj.getDate();
+    const mesNombre = nombresMeses[fechaObj.getMonth()];
+
+    const hoyLocal = obtenerFechaLocal();
+
+    resultados.push({
+      fechaIso,
+      etiquetaDia: `${diaSemana} ${diaNumero} ${mesNombre}`,
+      diaSemana,
+      diaNumero,
+      esHoy: fechaIso === hoyLocal,
+      puntaje: evaluacion.puntaje,
+      estado: evaluacion.estado,
+      tituloVeredicto: evaluacion.tituloVeredicto,
+      recomendacionCorta: evaluacion.recomendacionCorta,
+      colorTailwind: evaluacion.colorTailwind,
+      lunaFase: datosLuna?.fase ?? '--',
+      lunaIluminacion: datosLuna?.iluminacion ?? '--',
+      lunaActividad: datosLuna?.porcentajeActividad ?? 50,
+      olaPromedio,
+      vientoMax,
+      tempMax,
+      alertas: evaluacion.alertasSeguridad || [],
+    });
+  }
+
+  return resultados.slice(0, 7); // Retornar máximo 7 días
 };
 
 export default evaluarCondiciones;

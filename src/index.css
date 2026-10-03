@@ -13,3 +13,30 @@
     @apply bg-background text-text font-sans;
   }
 }
+
+@keyframes fishFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1.2deg);
+  }
+}
+
+@keyframes waveShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fish-float {
+  animation: fishFloat 4.5s ease-in-out infinite;
+}
+
+.shimmer-emerald {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+}
