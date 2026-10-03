@@ -1,140 +1,145 @@
-# 🎣 Pesca Yucatán — Plataforma de Monitoreo Costero & Semáforo de Pesca
+# Pesca Yucatan - Plataforma de Monitoreo Costero y Semaforo de Pesca
 
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Cloudflare Workers](https://img.shields.io/badge/Edge-Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-
-> **Pesca Yucatán** es una suite web progresiva (*Mobile-First*) diseñada para la comunidad de pescadores ribereños y deportivos de la Península de Yucatán. Integra meteorología en tiempo real, oceanografía local, modelado astronómico solunar, catálogo biológico regional y un algoritmo de decisión con salvaguarda física (*Kill Switch*) para salvaguardar vidas en altamar.
+Suite web progresiva orientada a la comunidad pesquera ribereña y deportiva de la Península de Yucatán. Integra meteorología operativa en tiempo real, oceanografía física regional, modelado astronómico de efemérides y un motor algorítmico de decisión con corte de seguridad por umbral crítico (Kill Switch) para prevenir accidentes en altamar.
 
 ---
 
-## 🌊 Características Principales
+## 1. Arquitectura del Sistema
 
-### 1. 🛡️ Algoritmo de Decisión & Seguridad Náutica (*Kill Switch*)
-* **Salvaguarda Infranqueable:** La seguridad en el mar no se negocia. Si se detectan vientos sostenidos o rachas > 30 km/h, oleaje mayor a 1.5 m o caídas abruptas de presión barométrica (indicativas de turbonadas o "nortes"), el semáforo activa automáticamente el estado **"Quédate en tierra"** con alerta visual roja, invalidando cualquier condición favorable solunar.
-* **Índice Ponderado de Condiciones (0 - 100 pts):**
-  * **Oleaje y Viento (35%):** Altura significativa de ola, periodo, velocidad y dirección de corrientes.
-  * **Teoría Solunar y Mareas (35%):** Cálculo de tránsito lunar, ventanas mayores/menores de actividad trófica e iluminación lunar.
-  * **Presión Barométrica (30%):** Monitoreo de estabilidad barométrica para proyectar el comportamiento de alimentación de los peces.
+La solución opera bajo una arquitectura desacoplada orientada al rendimiento y la resiliencia en red:
 
-### 2. 📍 Cobertura Integral del Litoral Yucateco
-Soporte geolocalizado para 13 puertos y zonas costeras estratégicas de la Península:
-* **Poniente y Rías:** Celestún, Sisal, Chuburná Puerto.
+1. **Cliente Web Progresivo (SPA):** Desarrollado en React 19 y compilado con Vite. Utiliza un diseño adaptativo mobile-first para facilitar la consulta directa en embarcaciones y muelles bajo condiciones de conectividad variable.
+2. **Capa Edge y Gateway API:** Desplegada sobre la infraestructura serverless de Cloudflare Workers. Centraliza el procesamiento de solicitudes, aplica validación de dominios autorizados (CORS) y ejecuta geocercas sobre coordenadas para evitar consumo indebido de recursos.
+3. **Caché Distribuido (KV Storage):** Normalización de coordenadas a dos decimales (~1.1 km de resolución costera) y persistencia temporal con TTL de 3600 segundos para optimizar latencias y proteger las cuotas de consulta hacia proveedores meteorológicos.
+
+---
+
+## 2. Caracteristicas Tecnicas Principales
+
+### 2.1 Motor de Decision y Semaforo Ponderado (0 a 100 Puntos)
+El estado de navegabilidad se calcula combinando variables ambientales mediante ponderación matemática:
+
+* **Oleaje y Viento (35%):** Altura significativa de ola, periodo, velocidad de viento y rachas superficiales.
+* **Teoria Solunar y Mareas (35%):** Coeficiente de actividad biológica, iluminación lunar, apogeo/perigeo y ventanas mayores/menores de alimentación.
+* **Estabilidad Barometrica (30%):** Tendencia de la presión atmosférica en superficie para anticipar cambios tróficos en peces de fondo y pelágicos.
+
+### 2.2 Salvaguarda de Seguridad Maritima (Kill Switch)
+Mecanismo de interrupción automática que anula cualquier puntuación favorable e impone el estado **"Quedate en tierra"** cuando se sobrepasa cualquiera de los siguientes umbrales operativos:
+* Velocidad sostenida o rachas de viento superiores a 30 km/h.
+* Altura significativa de ola superior a 1.5 metros.
+* Caída abrupta de presión barométrica indicativa de turbonadas o frentes fríos ("nortes").
+
+### 2.3 Catalogo Biologico de Yucatan
+* 12 especies marinas clave de la costa yucateca con fichas taxonómicas, artes de pesca recomendadas, carnadas/señuelos locales y tallas mínimas reglamentarias.
+* Enlace directo a fichas científicas oficiales en **Enciclovida (CONABIO)**.
+* Registro de vedas oficiales de acuerdo con las disposiciones vigentes de **INAPESCA** y **CONAPESCA**.
+
+### 2.4 Cobertura Geografica Costera
+Soporte georreferenciado para 13 puertos y puntos estratégicos de la costa norte de Yucatán:
+* **Poniente y Rias:** Celestún, Sisal, Chuburná Puerto.
 * **Costa Central y Puertos de Abrigo:** Chelem, Progreso, Chicxulub Puerto, Telchac Puerto.
 * **Costa Esmeralda y Oriente:** San Crisanto, Chabihau, Santa Clara, Dzilam de Bravo, San Felipe, Río Lagartos y El Cuyo.
 
-### 3. 🐟 Catálogo Biológico & Fichas Técnicas de Yucatán
-* Guía de especies locales (Mero Americano, Mero Negrillo, Robalo Blanco, Sábalo, Canané, Rubia, Corvina Pinta, Jurel, Barracuda, Esmedregal, Sierra del Golfo y Macabí).
-* **Fichas Técnicas Oficiales:** Conexión directa a **Enciclovida (CONABIO)** por especie.
-* **Enfoque de Pesca Sustentable:** Registro de tallas mínimas de captura, artes de pesca recomendadas, carnadas/señuelos locales y periodos de veda estipulados por **INAPESCA** y **CONAPESCA**.
-* **Microanimaciones marinas:** Animación fluida de nado y estética adaptada a la Costa Esmeralda.
-
-### 4. 📅 Planificador Semanal & Previsión Solunar
-* Proyección a 7 días de condiciones marinas ideales por hora y ventana diaria.
-* Identificación de periodos lunares pico (Luna Nueva y Luna Llena) y coeficientes de actividad biológica calculados localmente en el dispositivo.
-
 ---
 
-## 🛠️ Stack Tecnológico
+## 3. Stack Tecnologico
 
-| Capa | Tecnología | Propósito |
+| Componente | Tecnologia | Funcion |
 | :--- | :--- | :--- |
-| **Frontend** | React 19 + Vite | SPA ultrarrápida optimizada para consumo móvil |
-| **Estilos** | Tailwind CSS v4 + Vanilla CSS | Sistema de diseño de alta fidelidad, modo cristal y animaciones marinas |
-| **Iconografía** | Lucide React | Simbología vectorial náutica, meteorológica y marina |
-| **Astronomía** | `astronomy-engine` | Algoritmos de efemérides y fases lunares de precisión milimétrica sin dependencias externas |
-| **Edge / API Proxy** | Cloudflare Workers | Servidor serverless en el borde para sanitizar llamadas, normalizar respuestas y evitar exponer endpoints de terceros |
-| **Caché en el Borde** | Cloudflare KV | Almacenamiento en caché con geocercas a 2 decimales para optimizar llamadas a APIs meteorológicas |
+| Frontend | React 19 / Vite | Interfaz SPA responsiva, renderizado reactivo y carga instantánea |
+| Estilos | Tailwind CSS v4 / Vanilla CSS | Sistema de diseño de alta fidelidad y consistencia visual |
+| Iconografia | Lucide React | Simbologia tecnica náutica y meteorológica sin elementos gráficos informales |
+| Astronomia | astronomy-engine | Motor matemático de precisión milimétrica para cálculo de efemérides y solunar |
+| Backend Serverless | Cloudflare Workers | Proxy seguro en el borde, validación estricta de parámetros y saneamiento |
+| Capa de Cache | Cloudflare Workers KV | Almacenamiento clave-valor geocercado para deduplicación de consultas |
 
 ---
 
-## 📁 Arquitectura del Proyecto
+## 4. Estructura del Repositorio
 
 ```text
 pesca-yucatan-web/
 ├── public/
-│   ├── Especies/               # Galería de especies locales en formato optimizado WebP
+│   ├── Especies/               # Recursos gráficos optimizados de especies locales
 │   └── favicon.ico
 ├── src/
 │   ├── components/
-│   │   ├── estructura/         # Layout principal, Navbar, Header y Footer náutico
-│   │   ├── modulos/            # Módulos de funcionalidad y negocio
-│   │   │   ├── CatalogoPeces.jsx       # Catálogo de especies con filtros y enlaces Enciclovida
-│   │   │   ├── CondicionesActuales.jsx # Semáforo de pesca, métricas meteorológicas y Kill Switch
-│   │   │   ├── PlanificadorSemanal.jsx # Pronóstico y previsión náutica a 7 días
-│   │   │   ├── SelectorUbicacion.jsx   # Selector interactivo de puertos de Yucatán
-│   │   │   └── TarjetaFaseLunar.jsx    # Reloj solunar y cálculo de tránsito lunar
-│   │   └── ui/                 # Componentes atómicos (Botones, Tarjetas, Badges, Indicadores)
+│   │   ├── estructura/         # Layout global, Cabecera y Pie de Página
+│   │   ├── modulos/            # Modulos de negocio (CondicionesActuales, CatalogoPeces, PlanificadorSemanal, SelectorUbicacion, TarjetaFaseLunar)
+│   │   └── ui/                 # Componentes atomicos reutilizables (Boton, Cargador, Etiqueta, Tarjeta)
 │   ├── data/
-│   │   ├── pecesYucatan.js     # Base biológica de especies, vedas, técnicas y enlaces Enciclovida
-│   │   ├── ports.js            # Coordenadas, mareas de referencia y metadatos de puertos yucatecos
-│   │   └── species.js          # Datos complementarios de pesca deportiva
+│   │   ├── pecesYucatan.js     # Catalogo biologico regional, vedas y enlaces cientificos
+│   │   ├── ports.js            # Puntos geograficos oficiales y referencias de navegacion
+│   │   └── species.js          # Parametros complementarios de especies y tecnicas
 │   ├── hooks/
-│   │   ├── usarClima.js        # Hook reactivo de sincronización meteorológica y oceanográfica
-│   │   └── usarFaseLunar.js    # Hook para efemérides solunares
+│   │   ├── usarClima.js        # Gestion de estado y consumo asincrono de datos marinos
+│   │   └── usarFaseLunar.js    # Calculo y estado del ciclo lunar
 │   ├── servicios/
-│   │   └── api.js              # Cliente de consumo al Cloudflare Worker
+│   │   └── api.js              # Cliente HTTP configurado hacia el Worker
 │   ├── utilidades/
-│   │   ├── astronomia.js       # Modelado astronómico y cálculo solunar
-│   │   ├── formateadores.js    # Transformación de nudos, km/h, metros y rumbos de viento
-│   │   └── motorCondiciones.js # Motor analítico de puntuación y activación de Kill Switch
-│   ├── App.jsx                 # Orquestador principal de la aplicación
-│   ├── index.css               # Tokens de tema y animaciones marítimas
-│   └── main.jsx                # Punto de entrada de React
+│   │   ├── astronomia.js       # Implementacion de algoritmos solunares
+│   │   ├── formateadores.js    # Normalizacion de rumbos cardinales y unidades nauticas
+│   │   └── motorCondiciones.js # Algoritmo de ponderacion de semaforo y Kill Switch
+│   ├── App.jsx                 # Ensamblador de vistas y navegacion
+│   ├── index.css               # Configuracion de tema y animaciones
+│   └── main.jsx                # Inicializador de la aplicacion
 ├── package.json
 └── vite.config.js
 ```
 
 ---
 
-## 🚀 Instalación y Puesta en Marcha
+## 5. Instalacion y Entorno de Desarrollo
 
-### Prerrequisitos
-* **Node.js** >= 18.0.0
-* **npm** o gestor compatible
+### 5.1 Prerrequisitos
+* Node.js v18.0.0 o superior
+* Gestor de paquetes npm v9.0.0 o superior
 
-### 1. Clonar el repositorio
-```bash
-git clone https://github.com/tu-usuario/pesca-yucatan-web.git
-cd pesca-yucatan-web
-```
+### 5.2 Pasos de Configuracion
 
-### 2. Instalar dependencias
-```bash
-npm install
-```
+1. Clonar el repositorio localmente:
+   ```bash
+   git clone <URL_DEL_REPOSITORIO>
+   cd pesca-yucatan-web
+   ```
 
-### 3. Configuración de Entorno
-Crea un archivo `.env.local` en la raíz si deseas apuntar a un backend propio:
-```env
-VITE_API_BASE_URL=https://tu-worker.tu-cuenta.workers.dev
-```
+2. Instalar dependencias del proyecto:
+   ```bash
+   npm install
+   ```
 
-### 4. Ejecutar en modo desarrollo
-```bash
-npm run dev
-```
-La aplicación iniciará localmente en `http://localhost:5173/`.
+3. Variables de entorno:
+   Copiar o crear un archivo `.env.local` en la raíz del proyecto para definir el endpoint del backend:
+   ```env
+   VITE_WORKER_URL=https://<TU_WORKER_ENDPOINT>/api/condiciones
+   ```
 
-### 5. Compilar para producción
-```bash
-npm run build
-```
-Generará el bundle optimizado y minificado en la carpeta `dist/`.
+4. Ejecutar el servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```
 
----
-
-## 🧭 Fuentes de Datos & Normativas
-
-* **Fichas Biológicas y Taxonomía:** [Enciclovida (CONABIO)](https://enciclovida.mx/)
-* **Vedas y Regulaciones Pesqueras:** [INAPESCA](https://www.gob.mx/inapesca) & [CONAPESCA](https://www.gob.mx/conapesca)
-* **Datos Oceanográficos y Meteorológicos:** Modelos GFS / ECMWF / Marine Open-Meteo
-* **Cálculo Astronómico:** Efemérides solunares calculadas mediante algoritmos abiertos basados en `astronomy-engine`
+5. Generar compilación optimizada para producción:
+   ```bash
+   npm run build
+   ```
 
 ---
 
-## 📜 Licencia
+## 6. Proveedores de Datos y Atribucion
 
-Distribuido bajo la Licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+* **Oceanografia y Meteorologia:** Modelos numéricos globales provistos por la API abierta de [Open-Meteo](https://open-meteo.com/) (integración de ECMWF, GFS y Copernicus Marine).
+* **Taxonomia e Informacion Biologica:** Fichas de biodiversidad nacional de [Enciclovida](https://enciclovida.mx/) de la Comisión Nacional para el Conocimiento y Uso de la Biodiversidad (CONABIO).
+* **Regulaciones y Vedas:** Instituto Nacional de Pesca y Acuacultura ([INAPESCA](https://www.gob.mx/inapesca)) y Comisión Nacional de Acuacultura y Pesca ([CONAPESCA](https://www.gob.mx/conapesca)).
+
+---
+
+## 7. Deslinde de Responsabilidad (Disclaimer)
+
+La información proporcionada por esta plataforma tiene propósitos informativos, educativos y de recreación pesquera. Los pronósticos meteorológicos y oceanográficos son simulaciones computacionales sujetas a variaciones climáticas locales repentinas. Esta herramienta **no sustituye los avisos oficiales emitidos por Capitanía de Puerto, la Secretaría de Marina (SEMAR) ni las autoridades de Protección Civil del Estado de Yucatán**. Cada patrón de embarcación y tripulación es responsable directo de verificar las condiciones físicas antes de realizar cualquier actividad en altamar.
+
+---
+
+## 8. Licencia
+
+Este proyecto está bajo la Licencia MIT. Consulte el archivo [LICENSE](LICENSE) para más información.

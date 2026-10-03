@@ -575,10 +575,10 @@ export const CondicionesActuales = ({ ubicacionSeleccionada }) => {
       {/* ══════════════════════════════════════════════════════
           5. DISCLAIMER TÉCNICO Y LEGAL
          ══════════════════════════════════════════════════════ */}
-      <div className="px-3 py-2.5 rounded-xl bg-slate-100/70 border border-slate-200/60 flex items-start gap-2 text-slate-500">
-        <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+      <div className="px-4 py-3 rounded-2xl bg-slate-100/80 border border-slate-200 flex items-start gap-3 text-slate-500 shadow-2xs">
+        <Info className="w-4 h-4 shrink-0 mt-0.5 text-teal-600" />
         <p className="text-[11px] leading-relaxed">
-          <strong className="text-slate-600">Nota técnica:</strong> El puntaje refleja la favorabilidad de las condiciones ambientales (oleaje, viento, presión y solunar). <span className="underline">No representa una probabilidad garantizada de captura</span>. Los datos oceanográficos tienen precisión limitada cerca de la costa y <span className="font-semibold text-slate-700">no deben utilizarse como instrumento de navegación o seguridad marítima</span>.
+          <strong className="text-slate-800">Nota técnica y atribución:</strong> Datos meteorológicos y oceanográficos calculados por modelos numéricos globales de <strong className="text-slate-700">Open-Meteo (GFS / ECMWF / Copernicus Marine)</strong> y efemérides astronómicas. El puntaje estima la favorabilidad biológica y física; <span className="underline">no garantiza captura</span>. Ante alertas de turbonada, norte o mal tiempo, <span className="font-semibold text-slate-800">atienda siempre las indicaciones obligatorias de Capitanía de Puerto</span>.
         </p>
       </div>
     </div>

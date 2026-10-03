@@ -47,25 +47,25 @@ export const CatalogoPeces = () => {
         return {
           bg: 'bg-emerald-500/10 text-emerald-800 border-emerald-300',
           gradient: 'from-emerald-900/10 via-teal-900/5 to-transparent',
-          label: '🌿 Ría / Manglar'
+          label: 'Ría / Manglar'
         };
       case 'arrecife':
         return {
           bg: 'bg-teal-500/10 text-teal-800 border-teal-300',
           gradient: 'from-teal-900/10 via-cyan-900/5 to-transparent',
-          label: '🪸 Arrecife y Bajo'
+          label: 'Arrecife y Bajo'
         };
       case 'profundo':
         return {
           bg: 'bg-indigo-500/10 text-indigo-800 border-indigo-300',
           gradient: 'from-indigo-950/15 via-blue-900/5 to-transparent',
-          label: '🌊 Aguas Profundas'
+          label: 'Aguas Profundas'
         };
       default:
         return {
           bg: 'bg-sky-500/10 text-sky-800 border-sky-300',
           gradient: 'from-sky-900/10 via-cyan-900/5 to-transparent',
-          label: '🏖️ Costa y Muelle'
+          label: 'Costa y Muelle'
         };
     }
   };
